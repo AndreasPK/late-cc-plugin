@@ -33,7 +33,6 @@ import GHC.Types.Id
 import GHC.Types.Tickish
 #endif
 import GHC.Core
--- import GHC.Types.Tickish
 
 plugin :: Plugin
 plugin = defaultPlugin {
@@ -82,7 +81,21 @@ doBndr env bndr rhs = do
     let cc_mod = thisModule env
         bndrCC = NormalCC cc_flavour cc_name cc_mod name_loc
         note = ProfNote bndrCC count True
-    return $ LateCCPlugin.mkTick note rhs
+    tickRhs rhs note
+
+#if __GLASGOW_HASKELL__ < 902
+type CoreTickish = Tickish Id
+#endif
+tickRhs :: CoreExpr -> CoreTickish -> M CoreExpr
+tickRhs rhs note
+  | (Var f,_) <- collectArgs rhs
+  , hasNoBinding f
+  =
+    -- pprTraceM "primBind" (ppr rhs) >>
+    return rhs
+  | otherwise
+  = return $ LateCCPlugin.mkTick note rhs
+
 
 type M = State CostCentreState
 
@@ -100,7 +113,8 @@ data Env = Env
 
 -- | Wraps the given expression in the source annotation, dropping the
 -- annotation if possible.
--- mkTick :: CoreTickish -> CoreExpr -> CoreExpr
+-- Sadly not exported in 9.0 so we define it here for the plugin.
+mkTick :: CoreTickish -> CoreExpr -> CoreExpr
 mkTick t orig_expr = mkTick' id id orig_expr
  where
   -- Some ticks (cost-centres) can be split in two, with the
