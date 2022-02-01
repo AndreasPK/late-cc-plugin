@@ -37,7 +37,8 @@ import GHC.Core
 plugin :: Plugin
 plugin = defaultPlugin {
   installCoreToDos = install,
-  driverPlugin = disableAutoProf
+  driverPlugin = disableAutoProf,
+  pluginRecompile = purePlugin
   }
 
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
